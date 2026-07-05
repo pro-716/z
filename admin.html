@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RESPAWN | Admin Panel</title>
+    <title>RESPAWN | Admin Map</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -17,24 +17,23 @@
     <header class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-black">خريطة <span class="text-[#66fcf1]">الصالة</span></h1>
-            <p class="text-gray-400 text-xs">إدارة الطاولات والحسابات المفتوحة</p>
+            <p class="text-gray-400 text-xs">إدارة الحسابات والطلبات المفتوحة</p>
         </div>
-        <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-bold transition-all">إغلاق جميع الطاولات ❌</button>
+        <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-bold transition-all">تصفير الصالة ❌</button>
     </header>
 
     <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- All Tables will be here -->
+        <!-- Tables Grid -->
     </div>
 
-    <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeDetail()"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-6 rounded-3xl border border-white/10">
-            <h3 id="detail-title" class="text-2xl font-black mb-4 text-neonCyan">تفاصيل الطاولة</h3>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-6 rounded-3xl border border-white/10 bg-[#0f0f0f]">
+            <h3 id="detail-title" class="text-2xl font-black mb-4 text-[#66fcf1]">تفاصيل الطاولة</h3>
             <div id="detail-items" class="space-y-2 mb-6 text-sm text-gray-300"></div>
             <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl mb-6">
                 <span class="font-bold">المجموع:</span>
-                <span id="detail-total" class="text-xl font-black text-neonCyan">0 د.ع</span>
+                <span id="detail-total" class="text-xl font-black text-[#66fcf1]">0 د.ع</span>
             </div>
             <div class="flex gap-3">
                 <button id="btn-transfer" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold text-sm">تحويل ⇄</button>
@@ -61,12 +60,15 @@
 
         const ALL_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
 
+        // مراقبة الطلبات لحظياً
         onSnapshot(collection(db, "orders"), (snap) => {
             const openOrders = {};
             snap.forEach(docSnap => {
                 const data = docSnap.data();
                 if (data.status === "open") {
-                    if (!openOrders[data.table]) openOrders[data.table] = { items: [], total: 0, customer: data.customer };
+                    if (!openOrders[data.table]) {
+                        openOrders[data.table] = { items: [], total: 0, customer: data.customer };
+                    }
                     openOrders[data.table].items.push(...data.items);
                     openOrders[data.table].total += data.total;
                 }
@@ -90,7 +92,7 @@
                                 ${isOpen ? 'مشغولة' : 'فارغة'}
                             </span>
                         </div>
-                        ${isOpen ? `<div class="mt-4 text-neonCyan font-bold">المجموع: ${data.total.toLocaleString()} د.ع</div>` : `<div class="mt-4 text-gray-500 text-xs">لا توجد طلبات</div>`}
+                        ${isOpen ? `<div class="mt-4 text-[#66fcf1] font-bold">المجموع: ${data.total.toLocaleString()} د.ع</div>` : `<div class="mt-4 text-gray-500 text-xs">لا توجد طلبات</div>`}
                     </div>
                 `;
             });
@@ -99,6 +101,7 @@
         window.showDetail = async (tableName) => {
             const q = query(collection(db, "orders"), where("table", "==", tableName));
             const snap = await getDocs(q);
+            
             if(snap.empty) return alert("هذه الطاولة فارغة!");
 
             let items = []; let total = 0;
@@ -121,11 +124,12 @@
         window.closeDetail = () => document.getElementById('detail-modal').classList.add('hidden');
 
         window.closeTable = async (tableName) => {
+            if(!confirm(`هل تريد إغلاق حساب ${tableName} وتصفيره؟`)) return;
             const q = query(collection(db, "orders"), where("table", "==", tableName));
             const snap = await getDocs(q);
             snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
             closeDetail();
-            alert("تم إغلاق الطاولة وتصفير الحساب ✅");
+            alert("تم إغلاق الطاولة بنجاح ✅");
         };
 
         window.transferTable = async (fromTable) => {
@@ -141,7 +145,7 @@
         };
 
         window.closeAllTables = async () => {
-            if(!confirm("هل أنت متأكد من تصفير جميع طاولات الصالة؟")) return;
+            if(!confirm("تنبيه: سيتم تصفير جميع حسابات الصالة! هل أنت متأكد؟")) return;
             const snap = await getDocs(collection(db, "orders"));
             const batch = writeBatch(db);
             snap.forEach(d => batch.delete(doc(db, "orders", d.id)));
