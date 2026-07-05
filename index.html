@@ -18,7 +18,7 @@
         }
     </script>
     <style>
-        body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #fff; overflow-x: hidden; }
+        body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #fff; }
         .mesh-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
             background: radial-gradient(circle at 20% 30%, rgba(102, 252, 241, 0.1) 0%, transparent 40%),
@@ -26,7 +26,7 @@
             filter: blur(80px); animation: meshMove 15s ease-in-out infinite alternate;
         }
         @keyframes meshMove { from { transform: scale(1); } to { transform: scale(1.2); } }
-        .glass-card { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.3s ease; }
+        .glass-card { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .category-btn.active { background: #66fcf1; color: #000; box-shadow: 0 0 20px rgba(102, 252, 241, 0.5); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
@@ -34,11 +34,9 @@
 <body class="antialiased">
     <div class="mesh-bg"></div>
     <header class="pt-12 pb-6 text-center px-4">
-        <div class="animate__animated animate__fadeInDown">
-            <h1 class="text-6xl font-black tracking-tighter text-white mb-2">RESPAWN<span class="text-neonCyan">.</span></h1>
-            <div class="h-1 w-12 bg-neonCyan mx-auto rounded-full mb-4"></div>
-            <p class="text-gray-400 text-sm font-light tracking-widest uppercase">المنيو الرقمي والوقت</p>
-        </div>
+        <h1 class="text-6xl font-black tracking-tighter text-white mb-2">RESPAWN<span class="text-neonCyan">.</span></h1>
+        <div class="h-1 w-12 bg-neonCyan mx-auto rounded-full mb-4"></div>
+        <p class="text-gray-400 text-sm font-light uppercase">المنيو الرقمي والطلبات</p>
     </header>
 
     <nav class="sticky top-4 z-40 px-4 mb-10">
@@ -206,19 +204,28 @@
             const invoiceMsg = `🚀 *فاتورة طلب جديدة - RESPAWN*\n━━━━━━━━━━━━━━\n👤 *الزبون:* ${name}\n📍 *المكان:* ${table}\n📦 *الطلبات:*${itemsDetails}\n━━━━━━━━━━━━━━\n💰 *المجموع النهائي:* ${total.toLocaleString()} د.ع\n📝 *ملاحظة:* ${note || 'لا يوجد'}\n⏰ *الوقت:* ${new Date().toLocaleTimeString('ar-IQ')}\n━━━━━━━━━━━━━━`;
             
             try {
+                // 1. إرسال للتليجرام
                 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ chat_id: CHAT_ID, text: invoiceMsg, parse_mode: 'Markdown' })
                 });
+                
+                // 2. تخزين في Firebase
                 await addDoc(collection(db, "orders"), {
                     customer: name, table: table, items: cart, total: total, status: "open", timestamp: Date.now()
                 });
                 
-                alert("تم إرسال طلبك بنجاح! استمتع بوقتك ✅");
-                cart = []; updateCartUI(); closeCart();
-            } catch (e) { alert("حدث خطأ في الإرسال ❌"); }
-            finally {
+                alert("تم إرسال طلبك بنجاح! ✅");
+                cart = []; 
+                updateCartUI(); 
+                closeCart();
+                document.getElementById('cust-name').value = '';
+                document.getElementById('cust-table').value = '';
+                document.getElementById('cust-note').value = '';
+            } catch (e) { 
+                alert("حدث خطأ في الإرسال ❌"); 
+            } finally {
                 btn.disabled = false;
                 btn.innerText = "إرسال الطلب للتليجرام 🚀";
             }
