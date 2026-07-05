@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RESPAWN | Command Center</title>
-    <link href="https://fonts.googleapis.com/css2/family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script>
@@ -26,60 +26,73 @@
     </style>
 </head>
 <body class="p-4">
-    <!-- Auth Screen -->
-    <div id="auth-screen" class="fixed inset-0 z-[200] bg-darkBg flex flex-col items-center justify-center px-4">
+
+    <!-- Auth Screen (شاشة القفل) -->
+    <div id="auth-screen" class="fixed inset-0 z-[1000] bg-darkBg flex flex-col items-center justify-center px-4">
         <div class="text-center mb-8 animate__animated animate__fadeInDown">
             <h2 class="text-3xl font-black mb-2">دخول <span class="text-neonCyan">الإدارة</span></h2>
             <p class="text-gray-500 text-sm">يرجى إدخال رمز الوصول</p>
         </div>
         <input id="pass-code" type="password" placeholder="****" class="w-48 bg-black border-2 border-white/10 p-4 rounded-2xl text-center text-2xl font-black outline-none focus:border-neonCyan transition-all mb-4">
-        <button id="login-btn" class="bg-neonCyan text-black px-12 py-3 rounded-2xl font-black active:scale-95 transition-all">دخول</button>
+        <button onclick="checkPassword()" class="bg-neonCyan text-black px-12 py-3 rounded-2xl font-black active:scale-95 transition-all">دخول</button>
     </div>
 
-    <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-        <div class="text-right">
-            <h1 class="text-4xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
-            <p class="text-gray-400 text-xs uppercase tracking-widest">RESPAWN Management System</p>
-        </div>
-        <div class="revenue-card p-6 rounded-3xl text-black flex items-center gap-6 shadow-[0_0_30px_rgba(102,252,241,0.3)]">
-            <div class="text-3xl">💰</div>
-            <div>
-                <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات</p>
-                <h2 id="daily-revenue" class="text-3xl font-black">0 د.ع</h2>
+    <!-- Main Content (يظهر فقط بعد الرمز) -->
+    <div id="main-content" class="hidden">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div class="text-right">
+                <h1 class="text-4xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
+                <p class="text-gray-400 text-xs uppercase tracking-widest">RESPAWN Management System</p>
             </div>
-        </div>
-        <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-2xl text-white text-xs font-bold transition-all active:scale-95 shadow-lg">تصفير الصالة ❌</button>
-    </header>
+            <div class="revenue-card p-6 rounded-3xl text-black flex items-center gap-6 shadow-[0_0_30px_rgba(102,252,241,0.3)]">
+                <div class="text-3xl">💰</div>
+                <div>
+                    <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات</p>
+                    <h2 id="daily-revenue" class="text-3xl font-black">0 د.ع</h2>
+                </div>
+            </div>
+            <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-2xl text-white text-xs font-bold transition-all active:scale-95 shadow-lg">تصفير الصالة ❌</button>
+        </header>
 
-    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </div>
 
     <!-- Detail Modal -->
-    <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
+    <div id="detail-modal" class="fixed inset-0 z-[200] hidden">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" onclick="closeDetail()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-8 rounded-[2.5rem] border border-white/10 animate__animated animate__zoomIn">
             <div class="flex justify-between items-start mb-6">
                 <h3 id="detail-title" class="text-3xl font-black text-neonCyan">تفاصيل الطاولة</h3>
                 <button onclick="closeDetail()" class="text-gray-500 hover:text-white text-2xl">✕</button>
             </div>
-
             <div id="timer-section" class="hidden bg-black/50 p-4 rounded-2xl mb-6 border border-neonCyan/30 flex justify-between items-center">
                 <span class="text-sm font-bold">الوقت المتبقي:</span>
                 <span id="detail-timer" class="font-mono text-xl font-black text-neonCyan">00:00:00</span>
             </div>
-
             <div id="detail-items" class="space-y-3 mb-8 max-h-60 overflow-y-auto no-scrollbar"></div>
-
             <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl mb-8">
                 <span class="font-bold text-gray-400">المجموع الكلي:</span>
                 <span id="detail-total" class="text-2xl font-black text-neonCyan">0 د.ع</span>
             </div>
-
             <div class="grid grid-cols-2 gap-4">
                 <button id="btn-transfer" class="bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">تحويل ⇄</button>
                 <button id="btn-close" class="bg-red-600 hover:bg-red-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">إغلاق ✅</button>
             </div>
         </div>
     </div>
+
+    <script>
+        // دالة التحقق من الرمز - خارج الموديول لضمان العمل
+        function checkPassword() {
+            const code = document.getElementById('pass-code').value.trim();
+            if(code === "2008") {
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+            } else {
+                alert("الرمز خاطئ! حاول مرة أخرى.");
+            }
+        }
+    </script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
@@ -97,16 +110,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const ALL_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
-
-        // Auth Logic
-        document.getElementById('login-btn').onclick = () => {
-            const code = document.getElementById('pass-code').value;
-            if(code === "2008") {
-                document.getElementById('auth-screen').classList.add('hidden');
-            } else {
-                alert("الرمز خاطئ!");
-            }
-        };
 
         let timerInterval = null;
 
@@ -162,19 +165,18 @@
             let startTime = null; let duration = 0;
 
             snap.forEach(d => {
-                const data = d.//- Fixed error in data access
-                const dataObj = d.data();
-                items.push(...dataObj.items);
-                total += dataObj.total;
-                if(dataObj.startTime) startTime = dataObj.startTime;
-                if(dataObj.duration) duration = dataObj.duration;
+                const data = d.data();
+                items.push(...data.items);
+                total += data.total;
+                if(data.startTime) startTime = data.startTime;
+                if(data.duration) duration = data.duration;
             });
 
             document.getElementById('detail-title').innerText = tableName;
             document.getElementById('detail-total').innerText = `${total.toLocaleString()} د.ع`;
             const itemsDiv = document.getElementById('detail-items');
             itemsDiv.innerHTML = '';
-            items.forEach((item, idx) => {
+            items.forEach((item) => {
                 itemsDiv.innerHTML += `
                     <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5">
                         <span class="text-sm">${item.name} (${item.price} د.ع)</span>
@@ -242,7 +244,7 @@
             const snap = await getDocs(q);
             snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
             closeDetail();
-            alert("تم إغلاق الطاولة ✅");
+            alert("تم إغلاق الطاولة بنجاح ✅");
         };
 
         window.transferTable = async (fromTable) => {
@@ -254,7 +256,7 @@
             snap.forEach(d => batch.update(doc(db, "orders", d.id), { table: toTable }));
             await batch.commit();
             closeDetail();
-            alert("تم تحويل الحساب 🔄");
+            alert("تم تحويل الحساب بنجاح 🔄");
         };
 
         window.closeAllTables = async () => {
