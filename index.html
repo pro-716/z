@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RESPAWN | Digital Menu & Timer</title>
+    <title>RESPAWN | Menu</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -33,18 +33,6 @@
 </head>
 <body class="antialiased">
     <div class="mesh-bg"></div>
-
-    <!-- Timer Bar (يظهر فقط عند وجود جلسة وقت) -->
-    <div id="timer-bar" class="fixed top-0 left-0 right-0 z-[100] hidden animate__animated animate__fadeInDown">
-        <div class="max-w-md mx-auto p-3 glass-card m-2 rounded-2xl flex justify-between items-center border-neonCyan border">
-            <div class="flex items-center gap-3">
-                <span class="text-neonCyan animate-pulse">⏳</span>
-                <span id="timer-service" class="text-xs font-bold">جاري الحساب...</span>
-            </div>
-            <div id="timer-clock" class="font-mono text-neonCyan font-black text-lg">00:00:00</div>
-        </div>
-    </div>
-
     <header class="pt-12 pb-6 text-center px-4">
         <div class="animate__animated animate__fadeInDown">
             <h1 class="text-6xl font-black tracking-tighter text-white mb-2">RESPAWN<span class="text-neonCyan">.</span></h1>
@@ -88,7 +76,7 @@
                     <optgroup label="المنضدة"><option value="منضدة 11">منضدة 11</option><option value="منضدة 12">منضدة 12</option></optgroup>
                 </select>
                 <textarea id="cust-note" placeholder="ملاحظات إضافية..." class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm h-20"></textarea>
-                <button onclick="sendToTelegram()" class="w-full bg-neonCyan text-black py-5 rounded-2xl font-black text-lg shadow-[0_0_30px_rgba(102,252,241,0.3)] active:scale-95 transition-all">إرسال الطلب للتليجرام 🚀</button>
+                <button id="submit-btn" onclick="sendToTelegram()" class="w-full bg-neonCyan text-black py-5 rounded-2xl font-black text-lg shadow-[0_0_30px_rgba(102,252,241,0.3)] active:scale-95 transition-all">إرسال الطلب للتليجرام 🚀</button>
             </div>
         </div>
     </div>
@@ -118,62 +106,11 @@
             "مشروبات باردة": [ { id: 12, name: "تايكر طاقة", price: 1250 }, { id: 13, name: "كازوز علج", price: 500 }, { id: 14, name: "ببسي", price: 500 }, { id: 15, name: "ماونتن ديو", price: 500 }, { id: 16, name: "سفن اب", price: 500 }, { id: 17, name: "ميرندا", price: 500 }, { id: 18, name: "ماء بارد", price: 250 } ],
             "أراكيل ريسبون": [ { id: 19, name: "أركيلة علج نعناع", price: 2500 }, { id: 20, name: "أركيلة إنكليزي", price: 2500 }, { id: 21, name: "أركيلة تفاحتين", price: 2500 }, { id: 22, name: "أركيلة ليمون نعناع", price: 2500 }, { id: 23, name: "أركيلة نعناع", price: 2500 }, { id: 24, name: "خلطة Boss Fight", price: 3000 }, { id: 25, name: "خلطة Killstreak", price: 3000 }, { id: 26, name: "خلطة Loot Box", price: 3000 }, { id: 27, name: "خلطة Overclock", price: 3000 } ],
             "عروض ريسبون": [ { id: 28, name: "اركيلة 2 + كيم بلي مجاني", price: 5000 }, { id: 29, name: "ساعة بلايستيشن + 2 شاي مجاني", price: 4000 }, { id: 30, name: "ساعة منضدة + 2 شاي مجاني", price: 4000 }, { id: 31, name: "5 كيم بلايستيشن + السادس مجاني", price: 5000 }, { id: 32, name: "5 كيم بلايستيشن + عصير مجاني", price: 5000 } ],
-            "صالة الألعاب": [ 
-                { id: 33, name: "بلايستيشن 5 - ساعة", price: 4000, duration: 3600 }, 
-                { id: 34, name: "بلايستيشن 5 - نصف ساعة", price: 2000, duration: 1800 }, 
-                { id: 35, name: "كيم بلايستيشن 5 - زوجي", price: 1000 }, 
-                { id: 36, name: "كيم بلايستيشن 5 - رباعي", price: 2000 }, 
-                { id: 37, name: "منضدة تنس - ساعة", price: 4000, duration: 3600 }, 
-                { id: 38, name: "منضدة تنس - نصف ساعة", price: 2000, duration: 1800 }, 
-                { id: 39, name: "كيم منضدة تنس - زوجي", price: 500 }, 
-                { id: 40, name: "كيم منضدة تنس - رباعي", price: 1000 } 
-            ]
+            "صالة الألعاب": [ { id: 33, name: "بلايستيشن 5 - ساعة", price: 4000 }, { id: 34, name: "بلايستيشن 5 - نصف ساعة", price: 2000 }, { id: 35, name: "كيم بلايستيشن 5 - زوجي", price: 1000 }, { id: 36, name: "كيم بلايستيشن 5 - رباعي", price: 2000 }, { id: 37, name: "منضدة تنس - ساعة", price: 4000 }, { id: 38, name: "منضدة تنس - نصف ساعة", price: 2000 }, { id: 39, name: "كيم منضدة تنس - زوجي", price: 500 }, { id: 40, name: "كيم منضدة تنس - رباعي", price: 1000 } ]
         };
 
         let cart = [];
         let currentCat = "ازبري";
-
-        // --- نظام العداد الذكي (مقاوم للرفرفش) ---
-        function checkActiveSession() {
-            const session = JSON.parse(localStorage.getItem('respawn_session'));
-            if (session) {
-                startTimer(session.service, session.endTime, session.table);
-            }
-        }
-
-        function startTimer(service, endTime, table) {
-            document.getElementById('timer-bar').classList.remove('hidden');
-            document.getElementById('timer-service').innerText = `${service} - ${table}`;
-            
-            const interval = setInterval(() => {
-                const now = Date.now();
-                const diff = endTime - now;
-                
-                if (diff <= 0) {
-                    clearInterval(interval);
-                    document.getElementById('timer-clock').innerText = "00:00:00";
-                    sendTimeUpAlert(service, table);
-                    localStorage.removeItem('respawn_session');
-                    document.getElementById('timer-bar').classList.add('hidden');
-                    return;
-                }
-                
-                const h = Math.floor(diff / 3600000);
-                const m = Math.floor((diff % 3600000) / 60000);
-                const s = Math.floor((diff % 60000) / 1000);
-                document.getElementById('timer-clock').innerText = 
-                    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }, 1000);
-        }
-
-        async function sendTimeUpAlert(service, table) {
-            const msg = `⚠️ *تنبيه انتهاء وقت* ⚠️\n━━━━━━━━━━━━━━\n📍 *المكان:* ${table}\n🎮 *الخدمة:* ${service}\n⏰ *الحالة:* انتهى الوقت المحدد\n━━━━━━━━━━━━━━\nيرجى التوجه للمحاسبة ✅`;
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ chat_id: CHAT_ID, text: msg, parse_mode: 'Markdown' })
-            });
-        }
 
         function init() {
             const nav = document.getElementById('category-nav');
@@ -190,7 +127,6 @@
                 nav.appendChild(btn);
             });
             render();
-            checkActiveSession();
         }
 
         function render() {
@@ -202,15 +138,15 @@
                 card.style.animationDelay = `${i * 0.05}s`;
                 card.innerHTML = `
                     <div><div class="font-bold text-gray-100">${item.name}</div><div class="text-neonCyan font-mono text-sm">${item.price.toLocaleString()} د.ع</div></div>
-                    <button onclick="addToCart(${item.id}, '${item.name}', ${item.price}, ${item.duration || 0})" class="bg-white text-black w-9 h-9 rounded-xl flex items-center justify-center font-black transition-all active:scale-75">+</button>
+                    <button onclick="addToCart(${item.id}, '${item.name}', ${item.price})" class="bg-white text-black w-9 h-9 rounded-xl flex items-center justify-center font-black transition-all active:scale-75">+</button>
                 `;
                 grid.appendChild(card);
             });
         }
 
-        window.addToCart = (id, name, price, duration) => {
+        window.addToCart = (id, name, price) => {
             const exist = cart.find(i => i.id === id);
-            if(exist) exist.qty++; else cart.push({id, name, price, qty:1, duration});
+            if(exist) exist.qty++; else cart.push({id, name, price, qty:1});
             updateCartUI();
         }
 
@@ -256,16 +192,16 @@
             const name = document.getElementById('cust-name').value;
             const table = document.getElementById('cust-table').value;
             const note = document.getElementById('cust-note').value;
+            const btn = document.getElementById('submit-btn');
+            
             if(!name || !table) return alert("يرجى كتابة الاسم واختيار الطاولة ✍️");
             if(cart.length === 0) return alert("السلة فارغة 🛒");
 
+            btn.disabled = true;
+            btn.innerText = "جاري الإرسال...";
+
             let total = 0; let itemsDetails = "";
-            let timedItem = null;
-            cart.forEach(i => { 
-                total += i.price * i.qty; 
-                itemsDetails += `\n▫️ ${i.name} (x${i.qty}) ⮕ ${(i.price * i.qty).toLocaleString()} د.ع`; 
-                if(i.duration > 0) timedItem = i; 
-            });
+            cart.forEach(i => { total += i.price * i.qty; itemsDetails += `\n▫️ ${i.name} (x${i.qty}) ⮕ ${(i.price * i.qty).toLocaleString()} د.ع`; });
 
             const invoiceMsg = `🚀 *فاتورة طلب جديدة - RESPAWN*\n━━━━━━━━━━━━━━\n👤 *الزبون:* ${name}\n📍 *المكان:* ${table}\n📦 *الطلبات:*${itemsDetails}\n━━━━━━━━━━━━━━\n💰 *المجموع النهائي:* ${total.toLocaleString()} د.ع\n📝 *ملاحظة:* ${note || 'لا يوجد'}\n⏰ *الوقت:* ${new Date().toLocaleTimeString('ar-IQ')}\n━━━━━━━━━━━━━━`;
             
@@ -278,16 +214,14 @@
                 await addDoc(collection(db, "orders"), {
                     customer: name, table: table, items: cart, total: total, status: "open", timestamp: Date.now()
                 });
-
-                if(timedItem) {
-                    const endTime = Date.now() + (timedItem.duration * 1000);
-                    localStorage.setItem('respawn_session', JSON.stringify({ name: timedItem.name, endTime: endTime, table: table }));
-                    startTimer(timedItem.name, endTime, table);
-                }
                 
-                alert("تم إرسال طلبك بنجاح! ✅");
+                alert("تم إرسال طلبك بنجاح! استمتع بوقتك ✅");
                 cart = []; updateCartUI(); closeCart();
             } catch (e) { alert("حدث خطأ في الإرسال ❌"); }
+            finally {
+                btn.disabled = false;
+                btn.innerText = "إرسال الطلب للتليجرام 🚀";
+            }
         }
         window.onload = init;
     </script>
