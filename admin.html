@@ -8,20 +8,44 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #fff; }
-        .table-card { background: rgba(20, 20, 20, 0.8); border-right: 4px solid #66fcf1; }
+        .table-card { transition: all 0.3s ease; }
+        .table-open { border-right: 6px solid #ff4d4d; background: rgba(40, 10, 10, 0.6); }
+        .table-empty { border-right: 6px solid #4b5563; background: rgba(20, 20, 20, 0.6); }
     </style>
 </head>
 <body class="p-4">
     <header class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-black">الطاولات <span class="text-[#66fcf1]">المفتوحة</span></h1>
-        <div id="active-count" class="bg-[#66fcf1] text-black px-3 py-1 rounded-full font-bold text-sm">0 طاولات</div>
+        <div>
+            <h1 class="text-3xl font-black">خريطة <span class="text-[#66fcf1]">الصالة</span></h1>
+            <p class="text-gray-400 text-xs">إدارة الطاولات والحسابات المفتوحة</p>
+        </div>
+        <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-bold transition-all">إغلاق جميع الطاولات ❌</button>
     </header>
 
-    <div id="tables-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- All Tables will be here -->
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeDetail()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-6 rounded-3xl border border-white/10">
+            <h3 id="detail-title" class="text-2xl font-black mb-4 text-neonCyan">تفاصيل الطاولة</h3>
+            <div id="detail-items" class="space-y-2 mb-6 text-sm text-gray-300"></div>
+            <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl mb-6">
+                <span class="font-bold">المجموع:</span>
+                <span id="detail-total" class="text-xl font-black text-neonCyan">0 د.ع</span>
+            </div>
+            <div class="flex gap-3">
+                <button id="btn-transfer" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold text-sm">تحويل ⇄</button>
+                <button id="btn-close" class="flex-1 bg-red-600 py-3 rounded-xl font-bold text-sm">إغلاق ✅</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
@@ -35,72 +59,94 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        const ALL_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
+
         onSnapshot(collection(db, "orders"), (snap) => {
-            const tables = {};
+            const openOrders = {};
             snap.forEach(docSnap => {
                 const data = docSnap.data();
                 if (data.status === "open") {
-                    if (!tables[data.table]) {
-                        tables[data.table] = { items: [], total: 0, customer: data.customer };
-                    }
-                    tables[data.table].items.push(...data.items);
-                    tables[data.// total += data.total;
+                    if (!openOrders[data.table]) openOrders[data.table] = { items: [], total: 0, customer: data.customer };
+                    openOrders[data.table].items.push(...data.items);
+                    openOrders[data.table].total += data.total;
                 }
             });
-            // تصحيح خطأ بسيط في الحساب
-            renderTables(tables);
+            renderMap(openOrders);
         });
 
-        function renderTables(tables) {
+        function renderMap(openOrders) {
             const grid = document.getElementById('tables-grid');
             grid.innerHTML = '';
-            const keys = Object.keys(tables);
-            document.getElementById('active-count').innerText = `${keys.length} طاولات`;
 
-            keys.forEach(tableName => {
-                const t = tables[tableName];
-                let total = 0;
-                const itemsHtml = t.items.map(i => {
-                    total += i.price * (i.qty || 1);
-                    return `<div>• ${i.name} x${i.qty || 1} (${(i.price * (i.qty || 1)).toLocaleString()} د.ع)</div>`;
-                }).join('');
-
+            ALL_TABLES.forEach(tableName => {
+                const data = openOrders[tableName];
+                const isOpen = !!data;
+                
                 grid.innerHTML += `
-                    <div class="table-card p-5 rounded-2xl flex flex-col gap-4 shadow-xl">
+                    <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-3xl cursor-pointer ${isOpen ? 'table-open' : 'table-empty'}">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xl font-black text-[#66fcf1]">${tableName}</h3>
-                            <span class="text-xs text-gray-400">الزبون: ${t.customer}</span>
+                            <h3 class="text-xl font-black">${tableName}</h3>
+                            <span class="text-[10px] px-2 py-1 rounded-full ${isOpen ? 'bg-red-500 text-white' : 'bg-gray-600 text-gray-300'}">
+                                ${isOpen ? 'مشغولة' : 'فارغة'}
+                            </span>
                         </div>
-                        <div class="text-sm space-y-1 text-gray-300">${itemsHtml}</div>
-                        <div class="flex justify-between items-center border-t border-white/10 pt-4">
-                            <span class="text-lg font-bold">المجموع: ${total.toLocaleString()} د.ع</span>
-                            <div class="flex gap-2">
-                                <button onclick="transfer('${tableName}')" class="bg-blue-600 px-3 py-1 rounded-lg text-xs">تحويل ⇄</button>
-                                <button onclick="closeTable('${tableName}')" class="bg-red-600 px-3 py-1 rounded-lg text-xs">إغلاق ❌</button>
-                            </div>
-                        </div>
+                        ${isOpen ? `<div class="mt-4 text-neonCyan font-bold">المجموع: ${data.total.toLocaleString()} د.ع</div>` : `<div class="mt-4 text-gray-500 text-xs">لا توجد طلبات</div>`}
                     </div>
                 `;
             });
         }
 
+        window.showDetail = async (tableName) => {
+            const q = query(collection(db, "orders"), where("table", "==", tableName));
+            const snap = await getDocs(q);
+            if(snap.empty) return alert("هذه الطاولة فارغة!");
+
+            let items = []; let total = 0;
+            snap.forEach(d => {
+                const data = d.data();
+                items.push(...data.items);
+                total += data.total;
+            });
+
+            document.getElementById('detail-title').innerText = tableName;
+            document.getElementById('detail-items').innerHTML = items.map(i => `<div>• ${i.name} x${i.qty || 1} (${(i.price * (i.qty || 1)).toLocaleString()} د.ع)</div>`).join('');
+            document.getElementById('detail-total').innerText = `${total.toLocaleString()} د.ع`;
+            
+            document.getElementById('btn-close').onclick = () => closeTable(tableName);
+            document.getElementById('btn-transfer').onclick = () => transferTable(tableName);
+            
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        window.closeDetail = () => document.getElementById('detail-modal').classList.add('hidden');
+
         window.closeTable = async (tableName) => {
-            if(!confirm(`هل تريد إغلاق حساب ${tableName}؟`)) return;
             const q = query(collection(db, "orders"), where("table", "==", tableName));
             const snap = await getDocs(q);
             snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
-            alert("تم إغلاق الطاولة ✅");
+            closeDetail();
+            alert("تم إغلاق الطاولة وتصفير الحساب ✅");
         };
 
-        window.transfer = async (fromTable) => {
-            const toTable = prompt(`نقل حساب ${fromTable} إلى أي طاولة؟`);
+        window.transferTable = async (fromTable) => {
+            const toTable = prompt(`نقل حساب ${fromTable} إلى أي طاولة/بلي؟`);
             if(!toTable) return;
             const q = query(collection(db, "orders"), where("table", "==", fromTable));
             const snap = await getDocs(q);
-            snap.forEach(async (d) => {
-                await updateDoc(doc(db, "orders", d.id), { table: toTable });
-            });
-            alert("تم تحويل الحساب 🔄");
+            const batch = writeBatch(db);
+            snap.forEach(d => batch.update(doc(db, "orders", d.id), { table: toTable }));
+            await batch.commit();
+            closeDetail();
+            alert("تم تحويل الحساب بنجاح 🔄");
+        };
+
+        window.closeAllTables = async () => {
+            if(!confirm("هل أنت متأكد من تصفير جميع طاولات الصالة؟")) return;
+            const snap = await getDocs(collection(db, "orders"));
+            const batch = writeBatch(db);
+            snap.forEach(d => batch.delete(doc(db, "orders", d.id)));
+            await batch.commit();
+            alert("تم تصفير الصالة بالكامل ✅");
         };
     </script>
 </body>
