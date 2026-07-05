@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RESPAWN | Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #fff; }
+        .table-card { background: rgba(20, 20, 20, 0.8); border-right: 4px solid #66fcf1; }
+    </style>
+</head>
+<body class="p-4">
+    <header class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-black">الطاولات <span class="text-[#66fcf1]">المفتوحة</span></h1>
+        <div id="active-count" class="bg-[#66fcf1] text-black px-3 py-1 rounded-full font-bold text-sm">0 طاولات</div>
+    </header>
+
+    <div id="tables-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
+            authDomain: "respawn-7654a.firebaseapp.com",
+            projectId: "respawn-7654a",
+            storageBucket: "respawn-7654a.firebasestorage.app",
+            messagingSenderId: "503079760523",
+            appId: "1:503079760523:web:41cacc384dbffaa25a9a8e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        onSnapshot(collection(db, "orders"), (snap) => {
+            const tables = {};
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                if (data.status === "open") {
+                    if (!tables[data.table]) {
+                        tables[data.table] = { items: [], total: 0, customer: data.customer };
+                    }
+                    tables[data.table].items.push(...data.items);
+                    tables[data.// total += data.total;
+                }
+            });
+            // تصحيح خطأ بسيط في الحساب
+            renderTables(tables);
+        });
+
+        function renderTables(tables) {
+            const grid = document.getElementById('tables-grid');
+            grid.innerHTML = '';
+            const keys = Object.keys(tables);
+            document.getElementById('active-count').innerText = `${keys.length} طاولات`;
+
+            keys.forEach(tableName => {
+                const t = tables[tableName];
+                let total = 0;
+                const itemsHtml = t.items.map(i => {
+                    total += i.price * (i.qty || 1);
+                    return `<div>• ${i.name} x${i.qty || 1} (${(i.price * (i.qty || 1)).toLocaleString()} د.ع)</div>`;
+                }).join('');
+
+                grid.innerHTML += `
+                    <div class="table-card p-5 rounded-2xl flex flex-col gap-4 shadow-xl">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-black text-[#66fcf1]">${tableName}</h3>
+                            <span class="text-xs text-gray-400">الزبون: ${t.customer}</span>
+                        </div>
+                        <div class="text-sm space-y-1 text-gray-300">${itemsHtml}</div>
+                        <div class="flex justify-between items-center border-t border-white/10 pt-4">
+                            <span class="text-lg font-bold">المجموع: ${total.toLocaleString()} د.ع</span>
+                            <div class="flex gap-2">
+                                <button onclick="transfer('${tableName}')" class="bg-blue-600 px-3 py-1 rounded-lg text-xs">تحويل ⇄</button>
+                                <button onclick="closeTable('${tableName}')" class="bg-red-600 px-3 py-1 rounded-lg text-xs">إغلاق ❌</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.closeTable = async (tableName) => {
+            if(!confirm(`هل تريد إغلاق حساب ${tableName}؟`)) return;
+            const q = query(collection(db, "orders"), where("table", "==", tableName));
+            const snap = await getDocs(q);
+            snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
+            alert("تم إغلاق الطاولة ✅");
+        };
+
+        window.transfer = async (fromTable) => {
+            const toTable = prompt(`نقل حساب ${fromTable} إلى أي طاولة؟`);
+            if(!toTable) return;
+            const q = query(collection(db, "orders"), where("table", "==", fromTable));
+            const snap = await getDocs(q);
+            snap.forEach(async (d) => {
+                await updateDoc(doc(db, "orders", d.id), { table: toTable });
+            });
+            alert("تم تحويل الحساب 🔄");
+        };
+    </script>
+</body>
+</html>
