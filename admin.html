@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="//rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,25 +27,27 @@
 </head>
 <body class="p-4">
 
-    <!-- Main Content - يظهر مباشرة الآن -->
-    <div id="main-content">
-        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
-            <div class="text-right">
-                <h1 class="text-4xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
-                <p class="text-gray-400 text-xs uppercase tracking-widest">RESPAWN Management System</p>
+    <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div class="text-right">
+            <h1 class="text-4xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
+            <p class="text-gray-400 text-xs uppercase tracking-widest">RESPAWN Management System</p>
+        </div>
+        
+        <div class="revenue-card p-6 rounded-3xl text-black flex items-center gap-6 shadow-[0_0_30px_rgba(102,252,241,0.3)]">
+            <div class="text-3xl">💰</div>
+            <div>
+                <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات الثابتة</p>
+                <h2 id="daily-revenue" class="text-3xl font-black">0 د.ع</h2>
             </div>
-            <div class="revenue-card p-6 rounded-3xl text-black flex items-center gap-6 shadow-[0_0_30px_rgba(102,252,241,0.3)]">
-                <div class="text-3xl">💰</div>
-                <div>
-                    <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات</p>
-                    <h2 id="daily-revenue" class="text-3xl font-black">0 د.ع</h2>
-                </div>
-            </div>
-            <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-6 py-3 rounded-2xl text-white text-xs font-bold transition-all active:scale-95 shadow-lg">تصفير الصالة ❌</button>
-        </header>
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="addNewTable()" class="bg-neonCyan text-black px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95">إضافة طاولة +</button>
+            <button onclick="closeAllTables()" class="bg-red-600 hover:bg-red-700 px-4 py-3 rounded-2xl text-white text-xs font-bold transition-all active:scale-95">تصفير الصالة ❌</button>
+        </div>
+    </header>
 
-        <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-    </div>
+    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
     <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
@@ -55,15 +57,26 @@
                 <h3 id="detail-title" class="text-3xl font-black text-neonCyan">تفاصيل الطاولة</h3>
                 <button onclick="closeDetail()" class="text-gray-500 hover:text-white text-2xl">✕</button>
             </div>
+
             <div id="timer-section" class="hidden bg-black/50 p-4 rounded-2xl mb-6 border border-neonCyan/30 flex justify-between items-center">
                 <span class="text-sm font-bold">الوقت المتبقي:</span>
                 <span id="detail-timer" class="font-mono text-xl font-black text-neonCyan">00:00:00</span>
             </div>
+
+            <!-- Add Item Quick-Menu -->
+            <div class="flex gap-2 mb-6">
+                <input id="add-item-name" type="text" placeholder="اسم المنتج" class="flex-1 bg-black border border-white/10 p-2 rounded-xl text-xs outline-none">
+                <input id="add-item-price" type="number" placeholder="السعر" class="w-20 bg-black border border-white/10 p-2 rounded-xl text-xs outline-none">
+                <button id="btn-add-item" class="bg-neonCyan text-black px-3 rounded-xl font-bold text-xs">+</button>
+            </div>
+
             <div id="detail-items" class="space-y-3 mb-8 max-h-60 overflow-y-auto no-scrollbar"></div>
+
             <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl mb-8">
                 <span class="font-bold text-gray-400">المجموع الكلي:</span>
                 <span id="detail-total" class="text-2xl font-black text-neonCyan">0 د.ع</span>
             </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <button id="btn-transfer" class="bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">تحويل ⇄</button>
                 <button id="btn-close" class="bg-red-600 hover:bg-red-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">إغلاق ✅</button>
@@ -73,7 +86,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
@@ -86,52 +99,64 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const ALL_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
-
         let timerInterval = null;
 
-        onSnapshot(collection(db, "orders"), (snap) => {
-            const openOrders = {};
-            let grandTotal = 0;
+        // 1. Revenue System: Calculate from a separate 'stats' doc
+        async function updateRevenue() {
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const snap = await getDoc(statsRef);
+            const total = snap.exists() ? snap.data().total : 0;
+            document.getElementById('daily-revenue').innerText = `${total.toLocaleString()} د.ع`;
+        }
 
-            snap.forEach(docSnap => {
-                const data = docSnap.data();
-                if (data.status === "open") {
-                    const tName = data.table;
-                    if (!openOrders[tName]) {
-                        openOrders[tName] = { items: [], total: 0, customer: data.customer, startTime: data.startTime, duration: data.duration };
+        // 2. Tables Management
+        async function renderMap() {
+            const tableSnap = await getDocs(collection(db, "tables"));
+            const allTables = [];
+            tableSnap.forEach(d => allTables.push(d.data().name));
+
+            onSnapshot(collection(db, "orders"), (snap) => {
+                const openOrders = {};
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.status === "open") {
+                        const tName = data.table;
+                        if (!openOrders[tName]) openOrders[tName] = { items: [], total: 0, customer: data.customer, startTime: data.startTime, duration: data.duration };
+                        openOrders[tName].items.push(...data.items);
+                        openOrders[tName].total += data.total;
                     }
-                    openOrders[tName].items.push(...data.items);
-                    openOrders[tName].total += data.total;
-                    grandTotal += data.total;
-                }
-            });
-            document.getElementById('daily-revenue').innerText = `${grandTotal.toLocaleString()} د.ع`;
-            renderMap(openOrders);
-        });
-
-        function renderMap(openOrders) {
-            const grid = document.getElementById('tables-grid');
-            grid.innerHTML = '';
-            ALL_TABLES.forEach(tableName => {
-                const data = openOrders[tableName];
-                const isOpen = !!data;
-                grid.innerHTML += `
-                    <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-[2rem] cursor-pointer ${isOpen ? 'table-open' : 'table-empty'} shadow-lg">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xl font-black">${tableName}</h3>
-                            <span class="text-[10px] px-3 py-1 rounded-full ${isOpen ? 'bg-red-500 text-white' : 'bg-gray-600 text-gray-300'}">
-                                ${isOpen ? 'مشغولة' : 'فارغة'}
-                            </span>
+                });
+                
+                const grid = document.getElementById('tables-grid');
+                grid.innerHTML = '';
+                allTables.forEach(tableName => {
+                    const data = openOrders[tableName];
+                    const isOpen = !!data;
+                    grid.innerHTML += `
+                        <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-[2rem] cursor-pointer ${isOpen ? 'table-open' : 'table-empty'} shadow-lg">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xl font-black">${tableName}</h3>
+                                <span class="text-[10px] px-3 py-1 rounded-full ${isOpen ? 'bg-red-500 text-white' : 'bg-gray-600 text-gray-300'}">
+                                    ${isOpen ? 'مشغولة' : 'فارغة'}
+                                </span>
+                            </div>
+                            ${isOpen ? `<div class="mt-6 flex justify-between items-end">
+                                <span class="text-xs text-gray-400">الزبون: ${data.customer}</span>
+                                <span class="text-neonCyan font-black text-lg">${data.total.toLocaleString()} د.ع</span>
+                            </div>` : `<div class="mt-6 text-gray-600 text-xs italic">جاهزة للاستقبال</div>`}
                         </div>
-                        ${isOpen ? `<div class="mt-6 flex justify-between items-end">
-                            <span class="text-xs text-gray-400">الزبون: ${data.customer}</span>
-                            <span class="text-neonCyan font-black text-lg">${data.total.toLocaleString()} د.ع</span>
-                        </div>` : `<div class="mt-6 text-gray-600 text-xs italic">جاهزة للاستقبال</div>`}
-                    </div>
-                `;
+                    `;
+                });
             });
         }
+
+        window.addNewTable = async () => {
+            const name = prompt("أدخل اسم الطاولة الجديدة (مثلاً: VIP 1):");
+            if(!name) return;
+            await addDoc(collection(db, "tables"), { name: name });
+            alert("تم إضافة الطاولة بنجاح ✅");
+            location.reload();
+        };
 
         window.showDetail = async (tableName) => {
             const q = query(collection(db, "orders"), where("table", "==", tableName));
@@ -151,6 +176,7 @@
 
             document.getElementById('detail-title').innerText = tableName;
             document.getElementById('detail-total').innerText = `${total.toLocaleString()} د.ع`;
+            
             const itemsDiv = document.getElementById('detail-items');
             itemsDiv.innerHTML = '';
             items.forEach((item) => {
@@ -173,6 +199,7 @@
 
             document.getElementById('btn-close').onclick = () => closeTable(tableName);
             document.getElementById('btn-transfer').onclick = () => transferTable(tableName);
+            document.getElementById('btn-add-item').onclick = () => addItemToTable(tableName);
             document.getElementById('detail-modal').classList.remove('hidden');
         }
 
@@ -194,6 +221,27 @@
             }, 1000);
         }
 
+        window.addItemToTable = async (tableName) => {
+            const name = document.getElementById('add-item-name').value;
+            const price = parseInt(document.getElementById('add-item-price').value);
+            if(!name || !price) return alert("أدخل الاسم والسعر!");
+
+            const q = query(collection(db, "orders"), where("table", "==", tableName));
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            
+            snap.forEach(d => {
+                const data = d.data();
+                const newItems = [...data.items, {name, price, qty:1}];
+                batch.update(doc(db, "orders", d.id), { items: newItems, total: data.total + price });
+            });
+            await batch.commit();
+            document.getElementById('add-item-name').value = '';
+            document.getElementById('add-item-price').value = '';
+            showDetail(tableName);
+            alert("تم إضافة المنتج للحساب ✅");
+        }
+
         window.deleteItem = async (tableName, itemName, itemPrice) => {
             if(!confirm(`هل تريد حذف ${itemName} من الحساب؟`)) return;
             const q = query(collection(db, "orders"), where("table", "==", tableName));
@@ -202,12 +250,10 @@
             snap.forEach(d => {
                 const data = d.data();
                 const newItems = data.items.filter(i => i.name !== itemName);
-                const newTotal = data.total - itemPrice;
-                batch.update(doc(db, "orders", d.id), { items: newItems, total: newTotal });
+                batch.update(doc(db, "orders", d.id), { items: newItems, total: data.total - itemPrice });
             });
             await batch.commit();
             showDetail(tableName);
-            alert("تم حذف الطلب ✅");
         }
 
         window.closeDetail = () => {
@@ -217,16 +263,34 @@
 
         window.closeTable = async (tableName) => {
             if(!confirm(`هل تريد إغلاق حساب ${tableName} وتصفيره؟`)) return;
+            
+            // 1. Calculate final total to add to revenue
             const q = query(collection(db, "orders"), where("table", "==", tableName));
             const snap = await getDocs(q);
+            let finalTotal = 0;
+            snap.forEach(d => finalTotal += d.data().total);
+
+            // 2. Update Global Revenue (Permanent)
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const statsSnap = await getDoc(statsRef);
+            const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
+            await setDoc(statsRef, { total: currentRev + finalTotal });
+
+            // 3. Delete Table Orders
             snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
             closeDetail();
-            alert("تم إغلاق الطاولة بنجاح ✅");
+            updateRevenue();
+            alert("تم إغلاق الطاولة وإضافة المبلغ للخزنة ✅");
         };
 
         window.transferTable = async (fromTable) => {
-            const toTable = prompt(`نقل حساب ${fromTable} إلى أي طاولة؟`);
-            if(!toTable) return;
+            const tableSnap = await getDocs(collection(db, "tables"));
+            const allT = [];
+            tableSnap.forEach(d => allT.push(d.data().name));
+            
+            const toTable = prompt(`انقل حساب ${fromTable} إلى أي طاولة؟\nالمتاح: ${allT.join(', ')}`);
+            if(!toTable || !allT.includes(toTable)) return alert("اسم الطاولة غير صحيح!");
+            
             const q = query(collection(db, "orders"), where("table", "==", fromTable));
             const snap = await getDocs(q);
             const batch = writeBatch(db);
@@ -244,6 +308,10 @@
             await batch.commit();
             alert("تم تصفير الصالة بالكامل ✅");
         };
+
+        // Initial Load
+        updateRevenue();
+        renderMap();
     </script>
 </body>
 </html>
