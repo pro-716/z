@@ -45,7 +45,9 @@
         </div>
     </header>
 
-    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- سيتم رسم الطاولات هنا فوراً عند التحميل -->
+    </div>
 
     <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
@@ -91,10 +93,13 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const DEFAULT_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
-
+        
+        // الطاولات الأساسية (تظهر فوراً حتى لو قاعدة البيانات فارغة)
+        const BASE_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
+        let dynamicTables = [];
         let timerInterval = null;
 
+        // 1. تحديث الإيرادات
         async function updateRevenue() {
             const statsRef = doc(db, "stats", "daily_revenue");
             const snap = await getDoc(statsRef);
@@ -102,33 +107,37 @@
             document.getElementById('daily-revenue').innerText = `${total.toLocaleString()} د.ع`;
         }
 
-        // المراقبة اللحظية للطاولات
+        // 2. تحميل الطاولات المضافة يدوياً
+        async function loadDynamicTables() {
+            const snap = await getDocs(collection(db, "tables"));
+            dynamicTables = [];
+            snap.forEach(doc => dynamicTables.push(doc.data().name));
+        }
+
+        // 3. مراقبة الطلبات المفتوحة وتحديث الخريطة
         onSnapshot(collection(db, "orders"), async (snap) => {
             const openOrders = {};
             snap.forEach(docSnap => {
                 const data = docSnap.data();
                 if (data.status === "open") {
                     const tName = data.table;
-                    if (!openOrders[tName]) openOrders[tName] = { items: [], total: 0, customer: data.customer, startTime: data.startTime, duration: data.duration };
+                    if (!openOrders[tName]) {
+                        openOrders[tName] = { items: [], total: 0, customer: data.customer, startTime: data.startTime, duration: data.duration };
+                    }
                     openOrders[tName].items.push(...data.items);
                     openOrders[tName].total += data.total;
                 }
             });
-            
-            // جلب الطاولات المضافة يدوياً
-            const tableSnap = await getDocs(collection(db, "tables"));
-            const allTables = [...DEFAULT_TABLES];
-            tableSnap.forEach(d => {
-                const name = d.data().name;
-                if(!allTables.includes(name)) allTables.push(name);
-            });
-
-            renderMap(allTables, openOrders);
+            renderMap(openOrders);
         });
 
-        function renderMap(allTables, openOrders) {
+        function renderMap(openOrders) {
             const grid = document.getElementById('tables-grid');
             grid.innerHTML = '';
+            
+            // دمج الطاولات الأساسية مع المضافة
+            const allTables = [...new Set([...BASE_TABLES, ...dynamicTables])];
+
             allTables.forEach(tableName => {
                 const data = openOrders[tableName];
                 const isOpen = !!data;
@@ -251,6 +260,7 @@
             });
             await batch.commit();
             showDetail(tableName);
+            alert("تم الحذف ✅");
         }
 
         window.closeDetail = () => {
@@ -302,7 +312,11 @@
             alert("تم تصفير الصالة ✅");
         };
 
+        // Initial Load
         updateRevenue();
+        loadDynamicTables().then(() => {
+            renderMap({}); // رسم الطاولات فارغة فوراً عند الفتح
+        });
     </script>
 </body>
 </html>
