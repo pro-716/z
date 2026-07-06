@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RESPAWN | Menu</title>
+    <title>RESPAWN | Digital Menu</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
@@ -26,7 +26,7 @@
             filter: blur(80px); animation: meshMove 15s ease-in-out infinite alternate;
         }
         @keyframes meshMove { from { transform: scale(1); } to { transform: scale(1.2); } }
-        .glass-card { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.3s ease; }
         .category-btn.active { background: #66fcf1; color: #000; box-shadow: 0 0 20px rgba(102, 252, 241, 0.5); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
@@ -68,7 +68,7 @@
             <div class="space-y-4">
                 <input id="cust-name" type="text" placeholder="الاسم" class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm">
                 <select id="cust-table" class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm appearance-none">
-                    <option value="">🎯 اختر مكان الجلوس</option>
+                    <option value="">🎯 جاري تحميل الطاولات...</option>
                 </select>
                 <textarea id="cust-note" placeholder="ملاحظات إضافية..." class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm h-20"></textarea>
                 <button id="submit-btn" onclick="sendToTelegram()" class="w-full bg-neonCyan text-black py-5 rounded-2xl font-black text-lg shadow-[0_0_30px_rgba(102,252,241,0.3)] active:scale-95 transition-all">إرسال الطلب للتليجرام 🚀</button>
@@ -107,24 +107,17 @@
         let cart = [];
         let currentCat = "ازبري";
 
-        // جلب الطاولات الأساسية + الديناميكية
         async function loadTables() {
             const select = document.getElementById('cust-table');
-            const defaultTables = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
-            
-            let allTables = [...defaultTables];
             try {
                 const snap = await getDocs(collection(db, "tables"));
+                select.innerHTML = '<option value="">🎯 اختر مكان الجلوس</option>';
                 snap.forEach(doc => {
                     const name = doc.data().name;
-                    if(!allTables.includes(name)) allTables.push(name);
+                    select.innerHTML += `<option value="${name}">${name}</option>`;
                 });
-            } catch(e) { console.error("Error loading tables:", e); }
-
-            select.innerHTML = '<option value="">🎯 اختر مكان الجلوس</option>';
-            allTables.forEach(t => {
-                select.innerHTML += `<option value="${t}">${t}</option>`;
-            });
+                if(snap.empty) select.innerHTML = '<option value="">لا توجد طاولات متاحة حالياً</option>';
+            } catch(e) { console.error(e); }
         }
 
         function init() {
@@ -207,7 +200,7 @@
         window.sendToTelegram = async () => {
             const name = document.getElementById('cust-name').value;
             const table = document.getElementById('cust-table').value;
-            const note = document.getElementById('cust-//note').value;
+            const note = document.getElementById('cust-note').value;
             const btn = document.getElementById('submit-btn');
             
             if(!name || !table) return alert("يرجى كتابة الاسم واختيار الطاولة ✍️");
