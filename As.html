@@ -32,10 +32,10 @@
             70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); }
         }
+        .glass-card { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
     </style>
 </head>
 <body class="p-4">
-
     <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
         <div class="text-right">
             <h1 class="text-4xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
@@ -44,7 +44,7 @@
         <div class="revenue-card p-6 rounded-3xl text-black flex items-center gap-6 shadow-[0_0_30px_rgba(102,252,241,0.3)]">
             <div class="text-3xl">💰</div>
             <div>
-                <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات</p>
+                <p class="text-xs font-bold uppercase opacity-80">إجمالي الإيرادات الثابتة</p>
                 <h2 id="daily-revenue" class="text-3xl font-black">0 د.ع</h2>
             </div>
         </div>
@@ -54,13 +54,12 @@
         </div>
     </header>
 
-    <!-- Grid الطاولات - تظهر فوراً -->
     <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
 
     <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" onclick="closeDetail()"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-8 rounded-[2.5rem] border border-white/10 animate__animated animate__zoomIn">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-8 rounded-[2.5rem] border border-white/10 animate__animated animate__zoomIn glass-card">
             <div class="flex justify-between items-start mb-6">
                 <h3 id="detail-title" class="text-3xl font-black text-neonCyan">تفاصيل الطاولة</h3>
                 <button onclick="closeDetail()" class="text-gray-500 hover:text-white text-2xl">✕</button>
@@ -87,6 +86,18 @@
         </div>
     </div>
 
+    <!-- Transfer Modal (قائمة اختيار الطاولات) -->
+    <div id="transfer-modal" class="fixed inset-0 z-[200] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeTransfer()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-darkCard p-6 rounded-3xl border border-white/10 animate__animated animate__zoomIn">
+            <h3 class="text-xl font-black mb-4 text-center">نقل الحساب إلى...</h3>
+            <select id="transfer-target" class="w-full bg-black border border-white/10 p-4 rounded-2xl mb-6 text-sm outline-none focus:border-neonCyan appearance-none">
+                <!-- Tables injected here -->
+            </select>
+            <button id="confirm-transfer" class="w-full bg-neonCyan text-black py-3 rounded-xl font-bold active:scale-95 transition-all">تأكيد النقل 🔄</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch, setDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -102,30 +113,11 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        // القائمة الأساسية للطاولات - تظهر فوراً عند تحميل الصفحة
         const BASE_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
         let allTablesList = [...BASE_TABLES];
         let timerInterval = null;
+        let currentTransferSource = null;
 
-        // رسم الطاولات فوراً عند تحميل الصفحة بدون انتظار Firebase
-        function renderInitialMap() {
-            const grid = document.getElementById('tables-grid');
-            grid.innerHTML = '';
-            allTablesList.forEach(tableName => {
-                grid.innerHTML += `
-                    <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-[2rem] cursor-pointer table-empty shadow-lg">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-xl font-black">${tableName}</h3>
-                            <span class="text-[10px] px-3 py-1 rounded-full bg-gray-600 text-gray-300">فارغة</span>
-                        </div>
-                        <div class="mt-6 text-gray-600 text-xs italic">جاهزة للاستقبال</div>
-                    </div>
-                `;
-            });
-        }
-
-        // تحديث الإيرادات
         async function updateRevenue() {
             try {
                 const statsRef = doc(db, "stats", "daily_revenue");
@@ -135,17 +127,6 @@
             } catch(e) { console.error(e); }
         }
 
-        // تحميل الطاولات المضافة يدوياً من Firebase
-        async function syncTables() {
-            try {
-                const snap = await getDocs(collection(db, "tables"));
-                const dynamic = [];
-                snap.forEach(doc => dynamic.push(doc.data().name));
-                allTablesList = [...new Set([...BASE_TABLES, ...dynamic])];
-            } catch(e) { console.error(e); }
-        }
-
-        // المراقبة اللحظية للطلبات (تلوين الطاولات)
         onSnapshot(collection(db, "orders"), async (snap) => {
             const openOrders = {};
             snap.forEach(docSnap => {
@@ -158,7 +139,11 @@
                 }
             });
             
-            await syncTables(); // تحديث قائمة الطاولات قبل الرسم
+            const tableSnap = await getDocs(collection(db, "tables"));
+            const dynamic = [];
+            tableSnap.forEach(doc => dynamic.push(doc.data().name));
+            allTablesList = [...new Set([...BASE_TABLES, ...dynamic])];
+            
             renderMap(openOrders);
         });
 
@@ -230,7 +215,7 @@
             }
 
             document.getElementById('btn-close').onclick = () => closeTable(tableName);
-            document.getElementById('btn-transfer').onclick = () => transferTable(tableName);
+            document.getElementById('btn-transfer').onclick = () => openTransferModal(tableName);
             document.getElementById('btn-add-item').onclick = () => addItemToTable(tableName);
             document.getElementById('btn-delete-table').onclick = () => deleteTablePermanently(tableName);
             document.getElementById('detail-modal').classList.remove('hidden');
@@ -285,6 +270,7 @@
             });
             await batch.commit();
             showDetail(tableName);
+            alert("تم الحذف ✅");
         }
 
         window.closeDetail = () => {
@@ -293,34 +279,66 @@
         }
 
         window.closeTable = async (tableName) => {
-            if(!confirm(`إغلاق حساب ${tableName}؟`)) return;
-            const q = query(collection(db, "orders"), where("table", "==", tableName));
-            const snap = await getDocs(q);
-            let finalTotal = 0;
-            snap.forEach(d => finalTotal += d.data().total);
-            const statsRef = doc(db, "stats", "daily_revenue");
-            const statsSnap = await getDoc(statsRef);
-            const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
-            await setDoc(statsRef, { total: currentRev + finalTotal });
-            snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
-            closeDetail();
-            updateRevenue();
-            alert("تم إغلاق الطاولة وإضافة المبلغ للخزنة ✅");
+            if(!confirm(`إغلاق حساب ${tableName} وتصفيره؟`)) return;
+            try {
+                const q = query(collection(db, "orders"), where("table", "==", tableName));
+                const snap = await getDocs(q);
+                if (snap.empty) return alert("هذه الطاولة فارغة!");
+                let finalTotal = 0;
+                const docsToDelete = [];
+                snap.forEach(d => {
+                    finalTotal += d.data().total;
+                    docsToDelete.push(d.id);
+                });
+                const statsRef = doc(db, "stats", "daily_revenue");
+                const statsSnap = await getDoc(statsRef);
+                const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
+                await setDoc(statsRef, { total: currentRev + finalTotal });
+                for (const docId of docsToDelete) {
+                    await deleteDoc(doc(db, "orders", docId));
+                }
+                closeDetail();
+                updateRevenue();
+                alert(`تم إغلاق ${tableName} بنجاح وإضافة ${finalTotal.toLocaleString()} د.ع للخزنة ✅`);
+            } catch (e) { alert("حدث خطأ ❌"); }
         };
 
-        window.transferTable = async (fromTable) => {
-            const tableSnap = await getDocs(collection(db, "tables"));
-            const allT = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
-            tableSnap.forEach(d => allT.push(d.data().name));
-            const toTable = prompt(`نقل حساب ${fromTable} إلى:\n${allT.join(', ')}`);
-            if(!toTable || !allT.includes(toTable)) return alert("اسم الطاولة غير صحيح!");
-            const q = query(collection(db, "orders"), where("table", "==", fromTable));
+        // --- نظام تحويل الحساب عبر القائمة المنسدلة ---
+        window.openTransferModal = (fromTable) => {
+            currentTransferSource = fromTable;
+            const select = document.getElementById('transfer-target');
+            select.innerHTML = '<option value="">اختر الطاولة الهدف...</option>';
+            allTablesList.forEach(t => {
+                if(t !== fromTable) select.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+            document.getElementById('transfer-modal').classList.remove('hidden');
+        }
+
+        window.closeTransfer = () => document.getElementById('transfer-modal').classList.add('hidden');
+
+        document.getElementById('confirm-transfer').onclick = async () => {
+            const toTable = document.getElementById('transfer-target').value;
+            if(!toTable) return alert("يرجى اختيار طاولة!");
+            const q = query(collection(db, "orders"), where("table", "==", currentTransferSource));
             const snap = await getDocs(q);
             const batch = writeBatch(db);
             snap.forEach(d => batch.update(doc(db, "orders", d.id), { table: toTable }));
             await batch.commit();
+            closeTransfer();
             closeDetail();
             alert("تم تحويل الحساب بنجاح 🔄");
+        };
+
+        window.deleteTablePermanently = async (tableName) => {
+            if(!confirm(`حذف ${tableName} من النظام بالكامل؟`)) return;
+            const q = query(collection(db, "tables"), where("name", "==", tableName));
+            const snap = await getDocs(q);
+            snap.forEach(async (d) => await deleteDoc(doc(db, "tables", d.id)));
+            const ordersQ = query(collection(db, "orders"), where("table", "==", tableName));
+            const ordersSnap = await getDocs(ordersQ);
+            ordersSnap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
+            closeDetail();
+            alert("تم الحذف نهائياً 🗑️");
         };
 
         window.closeAllTables = async () => {
@@ -330,12 +348,6 @@
             snap.forEach(d => batch.delete(doc(db, "orders", d.id)));
             await batch.commit();
             alert("تم تصفير الصالة ✅");
-        };
-
-        // تنفيذ التشغيل الفوري
-        window.onload = () => {
-            renderInitialMap();
-            updateRevenue();
         };
     </script>
 </body>
