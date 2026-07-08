@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RESPAWN | Command Center</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2/family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <script>
@@ -54,7 +54,31 @@
         </div>
     </header>
 
-    <div id="tables-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <!-- Tabs Control -->
+    <div class="flex gap-4 mb-8 max-w-md mx-auto">
+        <button onclick="switchTab('map')" id="tab-map" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all bg-neonCyan text-black">خريطة الصالة</button>
+        <button onclick="switchTab('log')" id="tab-log" class="flex-1 py-3 rounded-2xl font-bold text-sm transition-all bg-white/5 text-gray-400">سجل الطلبات</button>
+    </div>
+
+    <!-- Map View -->
+    <div id="view-map" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <!-- Log View -->
+    <div id="view-log" class="hidden max-w-4xl mx-auto">
+        <div class="glass-card rounded-3xl overflow-hidden">
+            <table class="w-full text-right text-sm">
+                <thead class="bg-white/10 text-neonCyan">
+                    <tr>
+                        <th class="p-4">الوقت</th>
+                        <th class="p-4">الطاولة</th>
+                        <th class="p-4">الطلبات</th>
+                        <th class="p-4">المجموع</th>
+                    </tr>
+                </thead>
+                <tbody id="log-body"></tbody>
+            </table>
+        </div>
+    </div>
 
     <!-- Detail Modal -->
     <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
@@ -86,21 +110,19 @@
         </div>
     </div>
 
-    <!-- Transfer Modal (قائمة اختيار الطاولات) -->
+    <!-- Transfer Modal -->
     <div id="transfer-modal" class="fixed inset-0 z-[200] hidden">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeTransfer()"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-darkCard p-6 rounded-3xl border border-white/10 animate__animated animate__zoomIn">
             <h3 class="text-xl font-black mb-4 text-center">نقل الحساب إلى...</h3>
-            <select id="transfer-target" class="w-full bg-black border border-white/10 p-4 rounded-2xl mb-6 text-sm outline-none focus:border-neonCyan appearance-none">
-                <!-- Tables injected here -->
-            </select>
+            <select id="transfer-target" class="w-full bg-black border border-white/10 p-4 rounded-2xl mb-6 text-sm outline-none focus:border-neonCyan appearance-none"></select>
             <button id="confirm-transfer" class="w-full bg-neonCyan text-black py-3 rounded-xl font-bold active:scale-95 transition-all">تأكيد النقل 🔄</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch, setDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch, setDoc, getDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
@@ -118,13 +140,54 @@
         let timerInterval = null;
         let currentTransferSource = null;
 
+        // التبديل بين الواجهات
+        window.switchTab = (tab) => {
+            const map = document.getElementById('view-map');
+            const log = document.getElementById('view-log');
+            const tMap = document.getElementById('tab-map');
+            const tLog = document.getElementById('tab-log');
+            
+            if(tab === 'map') {
+                map.classList.remove('hidden'); log.classList.add('hidden');
+                tMap.classList.add('bg-neonCyan', 'text-black'); tLog.classList.remove('bg-neonCyan', 'text-black');
+                tLog.classList.add('bg-white/5', 'text-gray-400');
+            } else {
+                log.classList.remove('hidden'); map.classList.add('hidden');
+                tLog.classList.add('bg-neonCyan', 'text-black'); tMap.classList.remove('bg-neonCyan', 'text-black');
+                tMap.classList.add('bg-white/5', 'text-gray-400');
+                loadDailyLog();
+            }
+        };
+
         async function updateRevenue() {
-            try {
-                const statsRef = doc(db, "stats", "daily_revenue");
-                const snap = await getDoc(statsRef);
-                const total = snap.exists() ? snap.data().total : 0;
-                document.getElementById('daily-revenue').innerText = `${total.toLocaleString()} د.ع`;
-            } catch(e) { console.error(e); }
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const snap = await getDoc(statsRef);
+            const total = snap.exists() ? snap.data().total : 0;
+            document.getElementById('daily-revenue').innerText = `${total.toLocaleString()} د.ع`;
+        }
+
+        // تحميل سجل الطلبات اليومي
+        async function loadDailyLog() {
+            const logBody = document.getElementById('log-body');
+            logBodyB.innerHTML = '<div class="p-10 text-center text-gray-500">جاري تحميل السجل...</div>';
+            
+            const q = query(collection(db, "orders"), orderBy("timestamp", "desc"));
+            const snap = await getDocs(q);
+            
+            logBody.innerHTML = '';
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const time = new Date(data.timestamp).toLocaleTimeString('ar-IQ');
+                const items = data.items.map(i => i.name).join(', ');
+                logBody.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+                        <td class="p-4 text-xs">${time}</td>
+                        <td class="p-4 font-bold">${data.table}</td>
+                        <td class="p-4 text-xs text-gray-400">${items}</td>
+                        <td class="p-4 text-neonCyan font-bold">${data.total.toLocaleString()} د.ع</td>
+                    </tr>
+                `;
+            });
         }
 
         onSnapshot(collection(db, "orders"), async (snap) => {
@@ -143,7 +206,6 @@
             const dynamic = [];
             tableSnap.forEach(doc => dynamic.push(doc.data().name));
             allTablesList = [...new Set([...BASE_TABLES, ...dynamic])];
-            
             renderMap(openOrders);
         });
 
@@ -270,7 +332,6 @@
             });
             await batch.commit();
             showDetail(tableName);
-            alert("تم الحذف ✅");
         }
 
         window.closeDetail = () => {
@@ -279,31 +340,21 @@
         }
 
         window.closeTable = async (tableName) => {
-            if(!confirm(`إغلاق حساب ${tableName} وتصفيره؟`)) return;
-            try {
-                const q = query(collection(db, "orders"), where("table", "==", tableName));
-                const snap = await getDocs(q);
-                if (snap.empty) return alert("هذه الطاولة فارغة!");
-                let finalTotal = 0;
-                const docsToDelete = [];
-                snap.forEach(d => {
-                    finalTotal += d.data().total;
-                    docsToDelete.push(d.id);
-                });
-                const statsRef = doc(db, "stats", "daily_revenue");
-                const statsSnap = await getDoc(statsRef);
-                const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
-                await setDoc(statsRef, { total: currentRev + finalTotal });
-                for (const docId of docsToDelete) {
-                    await deleteDoc(doc(db, "orders", docId));
-                }
-                closeDetail();
-                updateRevenue();
-                alert(`تم إغلاق ${tableName} بنجاح وإضافة ${finalTotal.toLocaleString()} د.ع للخزنة ✅`);
-            } catch (e) { alert("حدث خطأ ❌"); }
+            if(!confirm(`إغلاق حساب ${tableName}؟`)) return;
+            const q = query(collection(db, "orders"), where("table", "==", tableName));
+            const snap = await getDocs(q);
+            let finalTotal = 0;
+            snap.forEach(d => finalTotal += d.data().total);
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const statsSnap = await getDoc(statsRef);
+            const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
+            await setDoc(statsRef, { total: currentRev + finalTotal });
+            snap.forEach(async (d) => await deleteDoc(doc(db, "orders", d.id)));
+            closeDetail();
+            updateRevenue();
+            alert("تم الإغلاق ✅");
         };
 
-        // --- نظام تحويل الحساب عبر القائمة المنسدلة ---
         window.openTransferModal = (fromTable) => {
             currentTransferSource = fromTable;
             const select = document.getElementById('transfer-target');
@@ -342,12 +393,30 @@
         };
 
         window.closeAllTables = async () => {
-            if(!confirm("تنبيه: سيتم تصفير جميع حسابات الصالة! هل أنت متأكد؟")) return;
+            if(!confirm("تصفير جميع حسابات الصالة؟")) return;
             const snap = await getDocs(collection(db, "orders"));
             const batch = writeBatch(db);
             snap.forEach(d => batch.delete(doc(db, "orders", d.id)));
             await batch.commit();
-            alert("تم تصفير الصالة ✅");
+            alert("تم التصفير ✅");
+        };
+
+        window.onload = () => {
+            updateRevenue();
+            // رسم أولي للطاولات الأساسية
+            const grid = document.getElementById('tables-grid');
+            grid.innerHTML = '';
+            BASE_TABLES.forEach(tableName => {
+                grid.innerHTML += `
+                    <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-[2rem] cursor-pointer table-empty shadow-lg">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-black">${tableName}</h3>
+                            <span class="text-[10px] px-3 py-1 rounded-full bg-gray-600 text-gray-300">فارغة</span>
+                        </div>
+                        <div class="mt-6 text-gray-600 text-xs italic">جاهزة للاستقبال</div>
+                    </div>
+                `;
+            });
         };
     </script>
 </body>
